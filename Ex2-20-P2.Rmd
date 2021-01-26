@@ -1,0 +1,241 @@
+---
+title: "Ex2-20-alternative"
+author: "Marshall Grimmett"
+date: "10/26/2020"
+output: html_document
+---
+
+Exam 2 - Part 2 - Fall 2020
+
+Read the question carefully and write your answers briefly supporting your conclusions with plots and statistical quantities. 
+
+You need to submit the html file and the Rmd file. Before submitting, 
+
+1. Change the name of your file as: (your last name).Ex2P2.Rmd
+2. "Knit" the file and verify your html file includes all necessary plots and all necessary values are printed correctly. 
+
+Because I couldn't do this part in jupyter notebooks, you can work on this file and enter the answer in blackboard, Exam2-P2
+
+### Load the dataset. 
+To view it, uncoment 2nd line:
+```{r}
+autompg<-read.table(url("http://archive.ics.uci.edu/ml/machine-learning-databases/auto-mpg/auto-mpg.data"), fileEncoding="UTF-16", dec=".",na.strings = '?')
+names(autompg)<-c('mpg','cyl','disp','hp','weight','acc','modelyr','origin','name')
+#View(autompg)
+```
+
+
+##### Auto MPG Data Set
+This dataset was taken from the StatLib library which is maintained at Carnegie Mellon University. The dataset was used in the 1983 American Statistical Association Exposition.
+
+
+##### Data Set Information:
+
+This dataset is a slightly modified version of the dataset provided in the StatLib library. In line with the use by Ross Quinlan (1993) in predicting the attribute "mpg", 8 of the original instances were removed because they had unknown values for the "mpg" attribute. The original dataset is available in the file "auto-mpg.data-original".
+
+"The data concerns city-cycle fuel consumption in miles per gallon, to be predicted in terms of 3 multivalued discrete and 5 continuous attributes." (Quinlan, 1993)
+
+
+Variables Information:
+
+1. mpg: continuous
+2. cylinders: multi-valued discrete
+3. displacement: continuous
+4. horsepower: continuous
+5. weight: continuous
+6. acceleration: continuous
+7. model year: multi-valued discrete
+8. origin: multi-valued discrete
+9. car name: string (unique for each instance)
+
+
+Your goal is to develop a model that predicts mpg of a car. You start with the multiple linear regression model using all of the first 6 regressors (this is your base model). Answer the questions associated to each part. 
+
+### A. <b> Variables </b>
+Read the variable description above. 
+Which variables are categorical?
+
+
+Horsepower'hp' has missing information as "NA".
+
+The first command will tell you how many NA's you have, the second will tell you which ones:
+```{r}
+sum(is.na(autompg$hp))
+which(is.na(autompg$hp))
+```
+
+Remove from the dataset the observations (rows) that contain the NA's
+```{r}
+autompg <- na.omit(autompg)
+```
+
+
+### B. Do the scatterplots of all numerical variables. 
+Sggestion: used the code Professor Reinhold uses with "pairs.r".
+
+Of the numerical variables, Which  two variables are the ones that are highest correlated with <b>mpg</b>?
+
+
+```{r }
+panel.hist<-function(x, ...) {
+  usr<-par("usr");
+  on.exit(par(usr));
+  par(usr=c(usr[1:2], 0, 1.5));
+  h<-hist(x, plot = FALSE);
+  breaks <-h$breaks;
+  nB <-length(breaks);
+  y<-h$counts; y <-y/max(y);
+  rect(breaks[-nB], 0, breaks[-1], y, col = "cyan", ...)
+}
+
+panel.cor <- function(x, y, digits=2, prefix="", cex.cor, ...) {
+  usr <-par("usr");
+  on.exit(par(usr));
+  par(usr = c(0, 1, 0, 1));
+  r <-abs(cor(x, y,use="complete.obs"));
+  txt <-format(c(r, 0.123456789), digits = digits)[1];
+  txt <-paste0(prefix, txt);
+  if(missing(cex.cor))
+    cex.cor <- 0.8/strwidth(txt);
+  text(0.5, 0.5, txt, cex = cex.cor * r)
+}
+
+pairs(autompg, panel=panel.smooth, diag.panel=panel.hist, lower.panel=panel.cor)
+```
+
+### C. <b>Base model:</b> 
+Fit a multiple linear regression model using the following regressors: cyl, hp, disp, weight and acc. Make sure categorical variables are treated as such.
+
+Answer goes here (model and summary):
+```{r}
+mod0<-lm(mpg ~ as.factor(cyl) + hp + disp + weight + acc, data=autompg)
+summary(mod0)
+```
+NOTE: if your Adjusted R-squared is not equal to 0.737, you need to adjust one of your variables.
+
+Which variable is the least significant?
+
+### D. 
+Remove variables that were not significant (at the 20% level), one at a time, starting with the least significant one.
+
+Enter the final model here and call it mod1.
+```{r}
+mod1<-lm(mpg ~ as.factor(cyl) + hp + weight, data=autompg)
+summary(mod1)
+```
+
+### E. 
+Modify mod1 to develop a model that includes interaction terms 
+with <b>cyl</b>. Check if any of these interaction terms contribute to the model.  
+
+Answer goes here (model and summary):
+```{r}
+mod2<-lm(mpg ~ as.factor(cyl)*hp + as.factor(cyl)*weight, data=autompg)
+summary(mod2)
+```
+
+How many terms are still significant at the 20% level in this mod2?
+
+Explain what is going on that there are so many terms that are not significant but the Global Utility test (the F terst) is? Enter just one word that describes the situation.
+
+
+Now replace 'cyc' by 'mycyl'
+```{r}
+mycyl<-1*(autompg$cyl>5)
+table(mycyl)
+```
+Since mycyl contains only 2 values, we don't need the as.factor()
+
+Drop the term that is not significant ath the 20% level and call the model mod2
+```{r}
+mod2<-lm(mpg ~ mycyl*hp + weight, data=autompg)
+summary(mod2)
+```
+
+
+### F.	Polynomials:
+By looking at the scatterplots of mpg vs numerical variables, consider changing mod1 by including polynomial terms for the numerical variables. Start with polynomials of degree 8 and clean your model according to what you see in the output.
+
+```{r}
+mod3<-lm(mpg ~ as.factor(cyl) + poly(hp, 2) + poly(weight, 2), data=autompg)
+summary(mod3)
+```
+
+
+### G. Poly with interactions
+Modify the above model by including interaction terms with mycyl. Reduce the degree of the  polynomial until most terms become significant. Call this model mod4.
+
+
+```{r}
+mod4<-lm(mpg ~ mycyl*poly(hp, 3) + poly(weight, 1), data=autompg)
+summary(mod4)
+```
+
+
+### H. Compare Models
+
+Compare the performance of the models mod1, mod2, mod 3 and mod4 by comparing   $adjR^2$ and $s$.
+
+
+```{r}
+0.7381
+0.7625
+0.7583
+0.764
+```
+
+### I. Which model would you choose under the principle of parsimony (kiss)?
+
+
+### J.	Assumptions 
+Now look at various diagnostics to see if the assumptions of the model we selected under kiss are met. 
+In particular, check for normality and constant variance violations. 
+Dont' forget to run tests
+Answer goes here:
+```{r}
+# install.packages("lmtest")
+library(lmtest)
+bptest(mod2)
+shapiro.test(mod2$residuals)
+plot(mod2)
+```
+
+Is normality satisfied?
+
+Is constant variance satisfied?
+
+
+
+### K. Outliers and Leverage
+Using your kiss model 
+
+  *	detect points from the data which outliers but not influential points. 
+  *	Detect leverage points which are not influential.
+  *	Detect leverage points which are influential points 
+ 
+ (if no such points then say not detected, if there are more than 3 then write the most significant 3). 
+  
+Suggestion: use influencePlot()
+
+Answer goes here:
+```{r}
+# install.packages("car")
+library(car)
+influencePlot(mod2)
+print("Leverage points")
+which(hatvalues(mod2) > 0.05)
+print("All outliers")
+which(abs(rstandard(mod2)) > 2)
+print("Top 3 outliers")
+which(abs(rstandard(mod2)) > 3.3) # Found using guess and check. Could have sorted, but this was quicker.
+
+```
+
+
+k.	<b>Colinearity;</b> Check for multicollinearity in the model selected. How many terms have VIF>10?
+
+
+Answer goes here:
+```{r}
+vif(mod2)
+```

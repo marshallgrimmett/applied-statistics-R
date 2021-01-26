@@ -1,0 +1,238 @@
+---
+title: "Exam3 - Fall 2020 - Mat 465/565"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+### Theory problem: 
+(10 pts) MLE for estimating the probability $\pi$ in a null model.
+
+In the notes I have expalined how the parameters for the model (the $\beta$'s)  are obtained by maximizing the log likelihood function.
+
+a) Write down the log likelihood for the null model, where all the probabilities are the same: $\pi_i=\pi=\frac{e^{\beta_0}}{1+e^{\beta_0}}$.
+That is, follow the notes and replace the $\pi_i$'s by $\pi$. 
+
+Answer:
+
+
+b) Find $\frac{\partial \log L}{\partial \pi}$ and use it to find the estimator for $\pi$. Hint: follow the notes.
+
+Answer:
+
+
+If you are at a loss with this problem, ask for help.
+
+
+### Coding problem:
+Here are the variables that MZines4You.com has on each customer from third-party sources:
+
+* Household Income (Income; rounded to the nearest $1,000.00)
+* Gender (IsFemale = 1 if the person is female, 0 otherwise)
+* Marital Status (IsMarried = 1 if married, 0 otherwise)
+* College Educated (HasCollege = 1 if has one or more years of college education, 0
+otherwise)
+* Employed in a Profession (IsProfessional = 1 if employed in a profession, 0 otherwise)
+* Retired (IsRetired = 1 if retired, 0 otherwise)
+* Not employed (Unemployed = 1 if not employed, 0 otherwise)
+* Length of Residency in Current City (ResLength; in years)
+* Dual Income if Married (Dual = 1 if dual income, 0 otherwise)
+* Children (Minors = 1 if children under 18 are in the household, 0 otherwise)
+* Home ownership (Own = 1 if own residence, 0 otherwise)
+*  Resident type (House = 1 if residence is a single family house, 0 otherwise)
+* Race (White = 1 if race is white, 0 otherwise)
+* Language (English = 1 is the primary language in the household is English, 0 otherwise)
+
+Your task is to develop such an equation for one magazine (“Kid Creative”) whose target
+audience are children between the ages of 9 and 12. In the process of sending out the
+“experimental” e-mails, the ad for “Kid Creative” was shown in 673 e-mails to customers and
+the purchase behavior recorded.
+
+In addition to the variables for each customer listed above (the ones obtained from 3rd party
+sources), Mzines4You.com has the following variables from their own databases:
+
+* Previously purchased a parenting magazine (PrevParent = 1 if previously purchased a
+parenting magazine, 0 otherwise).
+* Previously purchased a children’s magazine (PrevChild = 1 if previously purchased a
+children’s magazine)
+
+The dependent variable comes from the “experiment;” that is, from the 763 e-mails to customers containing the ad for “Kid Creative” and whether or not the customer purchased the magazine. That is, the dependent variable is
+
+* Purchased “Kid Creative” (Buy = 1 if purchased “Kid Creative,” 0 otherwise)
+ 
+A. Load the dataset KidCreative.txt  or KidCreative.xlsx
+
+```{r}
+kid <- read.csv("./KidCreative.csv", header = TRUE)
+
+```
+B. (10 pts)
+a. Obtain the MLE estimates for the coefficients of the logistic model and well as the
+corresponding odds ratios. 
+
+```{r}
+kid.model <- glm(Buy ~ Income + IsFemale + IsMarried + HasCollege + IsProfessional + IsRetired + Unemployed + ResidenceLength + DualIncome + Minors + Own + House + White + English + PrevChildMag + PrevParentMag, data=kid, family=binomial)
+summary(kid.model)
+exp(coef(kid.model))
+```
+Should you keep the variable Income in this scale or should you scale it by dividing by 10,000’s? Explain.
+
+You should scale it by 10,000 because very large values will cause the sigmoid function to be very small. This can be a problem because the other coefficients will have to compensate for these large values.
+
+b. Transform the variable Income by dividing it by 10,000. Call it myIncome
+Obtain the MLE estimated for the coefficients of the new logistic model and well as the corresponding odds ratios. Explain the effect of a unit change in the new variable income has on the odds ratio.
+
+We can see the estimates of the coefficients have become larger and closer to zero.
+
+
+```{r}
+myIncome<-kid$Income / 10000         # scaled income
+fullmod<-glm(Buy ~ myIncome + IsFemale + IsMarried + HasCollege + IsProfessional + IsRetired + Unemployed + ResidenceLength + DualIncome + Minors + Own + House + White + English + PrevChildMag + PrevParentMag, data=kid, family=binomial)           # full glm model with myIncome instead of Income
+summary(fullmod)
+exp(coef(fullmod))
+```
+
+C. (10 pts) Run a Backwards selection procedure to simplify the model according to the AIC.
+Drop one variable at a time. You can use:
+
+* drop1(model,IC="AIC")
+* or simply step(     , direction="backward")  See how it was done is model selection files for regression. It is done in the similar way in glm()
+
+```{r KidCreative}
+step(fullmod, direction="backward")
+reducedmod <- glm(formula = Buy ~ myIncome + IsFemale + IsRetired + ResidenceLength + 
+    DualIncome + Minors + Own + House + White + English + PrevChildMag, 
+    family = binomial, data = kid)
+summary(reducedmod)
+
+library(car)
+diffdev<-summary(reducedmod)$deviance -summary(fullmod)$deviance
+print(paste('Difference in deviances: ',diffdev))
+
+diffdf<-summary(reducedmod)$df.residual -summary(fullmod)$df.residual
+print(paste('Difference in degrees of freedom: ',diffdf))
+print(paste('p-value: ',1-pchisq(diffdev,diffdf)))
+```
+
+D. (10 pts) Once you have your final model in part C, run a Wald test (deviance test) to compare
+the full model to your new simplified model. State the null hypothesis and the alternative
+hypothesis of this test. Explain how deviance is calculated and how this test works.
+
+Answer:
+
+H_0: simplified model, B_k = 0 where B_k is in the full model but not the simplified model.
+
+H_1: full model, B_k != 0
+
+Chi-sq = 1.71246691045314
+
+Conclussion: We reject the alternative hypothesis, since the p-value is large and the extra variables 
+in the full model are not significant.
+
+
+E. (5 pts) Make a scatterplot of the response variable on myIncome, with the fitted logistic response
+function from the model you obtained in D, together with a lowess smooth superimposed.
+
+```{r}
+plot(Buy ~ myIncome, data=kid)
+points(lowess(myIncome,reducedmod$fitted),col='green')
+lines(lowess(myIncome,reducedmod$fitted),col='blue')  # enter the fitted values from your model
+```
+
+F. (5 pts) Obtain a 95% confidence interval for the coefficient of Income as well as for its
+exponentiated value (odds ratio). State what is the statistic of this test.
+
+```{r}
+confint(reducedmod, parm=('myIncome'))
+exp(confint(reducedmod, parm=('myIncome')))
+```
+
+G. (5 pts) Write down the equation for the predicted probabilities according to your model. What
+is the estimated probability that a female with an income of 68,000 will buy the Kids Creative
+magazine if: she is Married, has College education, is not Professional, is not Retired, is not
+Unemployed, has lived 3 years in he current city, rents an apartment, her home has Dual Income,
+has one child, she is White, speaks English, has never bought a Previous Child Magazine not a
+Parent Magazine.
+
+
+Answers:
+
+```{r}
+x = c(6.8, 1, 0, 3, 1, 1, 0, 0, 1, 1, 0)
+pred = 1 / (1 + exp(-17.69848 + 1.99159*x[1] + 1.60536*x[2] + -1.24541*x[3] + 0.02501*x[4] + 0.76534*x[5] + 1.20598*x[6] + 1.24178*x[7] + -0.93442*x[8] + 1.86036*x[9] + 1.62270*x[10] + 1.63456*x[11]))
+pred
+```
+
+H. (15 pts) A prediction rule is to be developed.
+
+H-a: Draw the ROC curve for your model. 
+
+
+```{r}
+library(Epi)
+S<-predict(reducedmod,type='response')
+ROC(form=Buy~S,plot="ROC",PV=TRUE,MX=TRUE,AUC=TRUE,data=kid,main="Epi ROC plot")
+
+```
+
+
+H-b. Find the sensitivity and specificity for the cutoffs: .1, .2, .3, .4, .5, .6
+
+The following computes sensitivity and specificity for the predictions from a logistic model, at a threshold s:
+```
+Ps=(model$fit>s)*1
+TN=sum((Ps==0)*(Y==0))/sum(Y==0)     #specificity 
+TP=sum((Ps==1)*(Y==1))/sum(Y==1)     #sensitivity
+```
+Modify that code as needed to do your computations.
+
+```{r}
+Ps=(reducedmod$fit>0.1)*1
+TN=sum((Ps==0)*(kid$Buy==0))/sum(kid$Buy==0)     #specificity
+TP=sum((Ps==1)*(kid$Buy==1))/sum(kid$Buy==1)     #sensitivity
+print('cutoff = 0.1')
+print(paste('Sensitivity: ',TP))
+print(paste('Specificity: ',TN))
+
+Ps=(reducedmod$fit>0.2)*1
+TN=sum((Ps==0)*(kid$Buy==0))/sum(kid$Buy==0)     #specificity
+TP=sum((Ps==1)*(kid$Buy==1))/sum(kid$Buy==1)     #sensitivity
+print('cutoff = 0.2')
+print(paste('Sensitivity: ',TP))
+print(paste('Specificity: ',TN))
+
+Ps=(reducedmod$fit>0.3)*1
+TN=sum((Ps==0)*(kid$Buy==0))/sum(kid$Buy==0)     #specificity
+TP=sum((Ps==1)*(kid$Buy==1))/sum(kid$Buy==1)     #sensitivity
+print('cutoff = 0.3')
+print(paste('Sensitivity: ',TP))
+print(paste('Specificity: ',TN))
+
+Ps=(reducedmod$fit>0.4)*1
+TN=sum((Ps==0)*(kid$Buy==0))/sum(kid$Buy==0)     #specificity
+TP=sum((Ps==1)*(kid$Buy==1))/sum(kid$Buy==1)     #sensitivity
+print('cutoff = 0.4')
+print(paste('Sensitivity: ',TP))
+print(paste('Specificity: ',TN))
+
+Ps=(reducedmod$fit>0.5)*1
+TN=sum((Ps==0)*(kid$Buy==0))/sum(kid$Buy==0)     #specificity
+TP=sum((Ps==1)*(kid$Buy==1))/sum(kid$Buy==1)     #sensitivity
+print('cutoff = 0.5')
+print(paste('Sensitivity: ',TP))
+print(paste('Specificity: ',TN))
+
+Ps=(reducedmod$fit>0.6)*1
+TN=sum((Ps==0)*(kid$Buy==0))/sum(kid$Buy==0)     #specificity
+TP=sum((Ps==1)*(kid$Buy==1))/sum(kid$Buy==1)     #sensitivity
+print('cutoff = 0.6')
+print(paste('Sensitivity: ',TP))
+print(paste('Specificity: ',TN))
+```
+H-c. Combining this information with the ROC curve abouve, which threshold is recommended?
+
+Answer: 0.2
+
+H4. As the threshold increases:
+sensitivity __decreases___ (increases/decreases)
+specificity __increases___ (increases/decreases)
